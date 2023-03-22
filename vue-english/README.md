@@ -1,4 +1,4 @@
-# vue-chrome
+# vue-english
 
 ## Project setup
 ```
