@@ -1,22 +1,18 @@
-<template>
-  <div class="main_app">
-    <h1>Hello popup</h1>
-  </div>
+<template #header>
+  <el-card class="box-card">
+    <div class="clearfix">
+      <span>卡片名：{{ '列表内容' + 0 }}</span>
+    </div>
+  </el-card>
 </template>
-
 <script>
-export default {
-  name: 'app',
-}
+  export default {
+    name: 'app'
+  }
 </script>
 
 <style>
-.main_app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+.box-card{
+  width: 300px;
 }
 </style>
