@@ -1,29 +1,54 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <title>Dictionary Editor</title>
-    <script src="options.js"></script>
-</head>
-
-<body>
-    <h1>Dictionary Editor</h1>
-    <div>
-        <h2>English to Chinese Dictionary</h2>
-        <ul id="dictionary"></ul>
-    </div>
-    <div>
-        <h2>Add Word/Phrase</h2>
-        <div>
-            <label for="english">English:</label>
-            <input type="text" id="english">
+  <head>
+    <meta charset="UTF-8">   <!-- 指定编码为UTF-8 -->
+    <title>Sync Storage Demo</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">  // 引入Bootstrap样式库
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.0/jquery.min.js"></script>            // 引入jQuery库
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>     // 引入Bootstrap脚本
+  </head>
+  <body>
+    <div class="container mt-3">
+      <h1>Sync Storage Demo</h1>
+      <hr>
+      <div id="loginForm">
+        <div class="mb-3">
+          <label for="username">Username:</label>
+          <input type="text" name="username" id="username" class="form-control">
         </div>
-        <div>
-            <label for="chinese">Chinese:</label>
-            <input type="text" id="chinese">
+        <div class="mb-3">
+          <label for="password">Password:</label>
+          <input type="password" name="password" id="password" class="form-control">
         </div>
-        <button id="add">Add</button>
+        <button class="btn btn-primary" id="loginBtn">Login</button>         // 登录按钮
+      </div>
+      <div id="managementForm" style="display: none;">
+        <form id="form">
+          <div class="mb-3">
+            <label for="data">Data:</label>
+            <input type="text" name="data" id="data" class="form-control">
+          </div>
+          <button type="submit" class="btn btn-primary mb-3" id="addBtn">Add</button>           // 添加按钮
+          <button type="submit" class="btn btn-primary mb-3" id="updateBtn">Update</button>     // 更新按钮
+          <button type="submit" class="btn btn-danger mb-3" id="deleteBtn">Delete</button>      // 删除按钮
+        </form>
+        <hr>
+        <div class="mb-3">
+          <button class="btn btn-primary" id="importBtn">Import</button>    // 导入按钮
+          <button class="btn btn-primary" id="exportBtn">Export</button>    // 导出按钮
+        </div>
+        <table class="table table-striped">      // 表格展示数据
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Data</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
     </div>
-</body>
 
+    <script src="options.js"></script>      // 引入脚本文件
+  </body>
 </html>

@@ -1,48 +1,70 @@
-chrome.browserAction.onClicked.addListener(function (tab) {
-    //在匹配指定条件的标签页上执行 JavaScript 代码的方法
-    chrome.tabs.executeScript({
-        file: 'content.js'
+// 获取所有数据
+function getData() {
+    return new Promise((resolve) => {
+        chrome.storage.sync.get("data", (result) => {
+            const data = result.data || [];
+            resolve(data);
+        });
     });
-});
-
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.action == "translate") {
-        var dictionary = JSON.parse(localStorage.getItem("dictionary"));
-        var text = request.text;
-        var translatedText = translateText(text, dictionary);
-        //允许在完成异步操作后向消息发送者发送响应结果
-        sendResponse(translatedText);
-    }
-});
-
-function translateText(text, dictionary) {
-    var translatedText = text;
-    for (var key in dictionary) {
-        //用于处理字符串匹配和替换。它使用模式（pattern）描述要匹配的字符串，并提供了一组用于执行模式匹配操作的方法
-        var regex = new RegExp('\\b' + key + '\\b', 'gi');
-        translatedText = translatedText.replace(regex, dictionary[key]);
-    }
-    return translatedText;
 }
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-    if (request.action === "translate") {
-        var dictionary = JSON.parse(localStorage.getItem("dictionary"));
-        var text = request.text.toLowerCase().split(' ');
-        var translation = '';
-        for (var i = 0; i < text.length; i++) {
-            var word = text[i].replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
-            if (dictionary[word]) {
-                translation += dictionary[word] + ' ';
-            } else {
-                translation += text[i] + ' ';
-            }
-        }
-        sendResponse({ translation: translation.trim() });
-    }
-});
 
-chrome.runtime.onInstalled.addListener(function (details) {
-    if (details.reason === "install") {
-        localStorage.setItem("dictionary", JSON.stringify({}));
+// 保存所有数据
+function saveData(data) {
+    chrome.storage.sync.set({ data }, () => {
+        console.log("Data saved to cloud.");
+    });
+}
+
+// 监听来自options页面的消息
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    switch (message.type) {
+        case "getData":
+            getData().then((data) => {
+                // 发送所有数据给options页面
+                sendResponse({ type: "getDataResponse", data });
+            });
+            break;
+        case "addData":
+            getData().then((data) => {
+                console.log('收到' + data)
+                // 获取最大ID并自增
+                const maxId = data.length === 0 ? 0 : Math.max(...data.map((item) => item.id));
+                const newData = { id: maxId + 1, ...message.data };
+
+                // 保存新数据并发送成功消息给options页面
+                saveData([...data, newData]);
+                sendResponse({ type: "addDataResponse" });
+            });
+            break;
+        case "updateData":
+            getData().then((data) => {
+                // 找到要更新的数据并更新
+                const newData = data.map((item) => {
+                    if (item.id === message.data.id) {
+                        return { ...item, ...message.data };
+                    }
+                    return item;
+                });
+
+                // 保存更新后的数据并发送成功消息给options页面
+                saveData(newData);
+                sendResponse({ type: "updateDataResponse" });
+            });
+            break;
+        case "deleteData":
+            getData().then((data) => {
+                // 删除指定ID的数据
+                const newData = data.filter((item) => item.id !== message.data.id);
+
+                // 保存删除后的数据并发送成功消息给options页面
+                saveData(newData);
+                sendResponse({ type: "deleteDataResponse" });
+            });
+            break;
+        default:
+            break;
     }
+
+    // 返回true表示异步响应
+    return true;
 });
