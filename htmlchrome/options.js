@@ -1,137 +1,120 @@
-$(function () {
-    // 登录表单的提交事件
-    $('#loginForm').on('submit', function (e) {
-        e.preventDefault();    // 阻止默认提交行为
-        var username = $('#username').val();
-        var password = $('#password').val();
-        $.ajax({
-            url: 'https://api.example.com/login',    // 后端API请求地址
-            type: 'POST',
-            data: {
-                username: username,
-                password: password
-            },
-            success: function (data) {
-                if (data.success) {     // 登录成功
-                    // 隐藏登录表单，显示管理表单
-                    $('#loginForm').hide();
-                    $('#managementForm').show();
+// 获取表单和表格元素
+const addForm = document.getElementById('add-form');
+const wordTable = document.getElementById('word-table').querySelector('tbody');
 
-                    // 获取已经存储的数据并展示在表格中
-                    chrome.storage.sync.get(null, function (items) {
-                        $.each(items, function (key, value) {
-                            $('#tableBody').append('<tr><td>' + key + '</td><td>' + value + '</td></tr>');
-                        });
-                    });
-                } else {                // 登录失败
-                    alert(data.message);   // 弹出错误提示信息
-                }
-            }
-        });
-    });
+// 获取API URL
+const apiUrl = 'http://41.77.243.233:1337/api/words-lists';
 
-    // 数据管理表单的提交事件
-    $('#form').on('submit', function (e) {
-        e.preventDefault();       // 阻止默认提交行为
-        var data = $('#data').val();
-        var id = $('button:focus').attr('id');   // 获取当前点击的按钮ID
-        if (id === 'addBtn') {      // 添加数据
-            $.ajax({
-                url: 'https://api.example.com/data',
-                type: 'POST',
-                data: {
-                    data: data
-                },
-                success: function (data) {
-                    var newId = parseInt(data.id);
-                    chrome.storage.sync.set({ [newId]: data.data }, function () {
-                        $('#tableBody').append('<tr><td>' + newId + '</td><td>' + data.data + '</td></tr>');
-                    });
-                }
-            });
-        } else if (id === 'updateBtn') {     // 修改数据
-            var selectedRow = $('#tableBody tr.selected');
-            if (!selectedRow.length) {
-                alert('Please select a row to update');
-                return;
-            }
-            var selectedId = selectedRow.find('td:first-child').text();
-            $.ajax({
-                url: 'https://api.example.com/data/' + selectedId,
-                type: 'PUT',
-                data: {
-                    data: data
-                },
-                success: function () {
-                    chrome.storage.sync.set({ [selectedId]: data }, function () {
-                        selectedRow.find('td:last-child').text(data);
-                    });
-                }
-            });
-        } else if (id === 'deleteBtn') {    // 删除数据
-            var selectedRow = $('#tableBody tr.selected');
-            if (!selectedRow.length) {
-                alert('Please select a row to delete');
-                return;
-            }
-            var selectedId = selectedRow.find('td:first-child').text();
-            $.ajax({
-                url: 'https://api.example.com/data/' + selectedId,
-                type: 'DELETE',
-                success: function () {
-                    chrome.storage.sync.remove(selectedId, function () {
-                        selectedRow.remove();
-                    });
-                }
-            });
-        }
+// 获取所有数据并填充表格
+const xhr = new XMLHttpRequest();
+xhr.open('GET', apiUrl);
+xhr.onload = function () {
+  if (xhr.status === 200) {
+    const data = JSON.parse(xhr.responseText).data;
+    data.forEach(word => {
+      addWordToTable(word);
     });
+  }
+};
+xhr.send();
 
-    // 选中行的样式变化
-    $('#tableBody').on('click', 'tr', function () {
-        $('#tableBody tr').removeClass('selected');
-        $(this).addClass('selected');
-        var data = $(this).find('td:last-child').text();
-        $('#data').val(data);
-    });
+// 将新单词添加到表格中
+addForm.addEventListener('submit', event => {
+  event.preventDefault();
 
-    // 导入和导出功能
-    $('#importBtn').on('click', function () {
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = function () {
-            var file = this.files[0];
-            var reader = new FileReader();
-            reader.onload = function () {
-                var data = JSON.parse(reader.result);
-                $.ajax({
-                    url: 'https://api.example.com/data/import',
-                    type: 'POST',
-                    data: data,
-                    success: function () {
-                        chrome.storage.sync.clear(function () {
-                            chrome.storage.sync.set(data, function () {
-                                location.reload();
-                            });
-                        });
-                    }
-                });
-            };
-            reader.readAsText(file);
-        };
-        input.click();
-    });
+  const englishInput = addForm.querySelector('#english-input');
+  const chineseInput = addForm.querySelector('#chinese-input');
 
-    $('#exportBtn').on('click', function () {
-        chrome.storage.sync.get(null, function (items) {
-            var json = JSON.stringify(items);
-            var blob = new Blob([json], { type: 'application/json' });
-            var url = URL.createObjectURL(blob);
-            chrome.downloads.download({
-                url: url,
-                filename: 'data.json'
-            });
-        });
-    });
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', apiUrl);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function () {
+    if (xhr.status === 201) {
+      const word = JSON.parse(xhr.responseText).data;
+      addWordToTable(word);
+      englishInput.value = '';
+      chineseInput.value = '';
+    }
+  };
+  const data = JSON.stringify({
+    english: englishInput.value,
+    chinese: chineseInput.value
+  });
+  xhr.send(data);
 });
+
+// 编辑单词
+function editWord(id, englishCell, chineseCell) {
+  const english = englishCell.textContent;
+  const chinese = chineseCell.textContent;
+
+  const newEnglish = prompt('Enter new English word:', english);
+  const newChinese = prompt('Enter new Chinese word:', chinese);
+
+  if (newEnglish && newChinese) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', `${apiUrl}/${id}`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        const data = JSON.parse(xhr.responseText).data;
+        englishCell.textContent = data.attributes.english;
+        chineseCell.textContent = data.attributes.chinese;
+      }
+    };
+    const data = JSON.stringify({
+      english: newEnglish,
+      chinese: newChinese
+    });
+    xhr.send(data);
+  }
+}
+
+// 删除单词
+function deleteWord(id, row) {
+  if (confirm('Are you sure you want to delete this word?')) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('DELETE', `${apiUrl}/${id}`);
+    xhr.onload = function () {
+      if (xhr.status === 204) {
+        row.remove();
+      }
+    };
+    xhr.send();
+  }
+}
+
+// 将单词添加到表格中
+function addWordToTable(word) {
+  const row = document.createElement('tr');
+  const idCell = document.createElement('td');
+  const englishCell = document.createElement('td');
+  const chineseCell = document.createElement('td');
+  const actionsCell = document.createElement('td');
+  const editButton = document.createElement('button');
+  const deleteButton = document.createElement('button');
+
+  idCell.textContent = word.id;
+  englishCell.textContent = word.attributes.english;
+  chineseCell.textContent = word.attributes.chinese;
+  editButton.textContent = 'Edit';
+  deleteButton.textContent = 'Delete';
+
+  editButton.addEventListener('click', () => {
+    editWord(word.id, englishCell, chineseCell);
+  });
+
+  deleteButton.addEventListener('click', () => {
+    deleteWord(word.id, row);
+  });
+
+  actionsCell.appendChild(editButton);
+  actionsCell.appendChild(deleteButton);
+
+  row.appendChild(idCell);
+  row.appendChild(englishCell);
+  row.appendChild(chineseCell);
+  row.appendChild(actionsCell);
+
+  wordTable.appendChild(row);
+}
