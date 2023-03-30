@@ -62,10 +62,8 @@ function editWord(id, englishCell, chineseCell) {
       headers: headers,
       body: JSON.stringify({
         "data": {
-          "attributes": {
-            "english": newEnglish,
-            "chinese": newChinese
-          }
+          "english": newEnglish,
+          "chinese": newChinese
         }
       })
     })
