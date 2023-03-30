@@ -2,21 +2,30 @@
 const addForm = document.getElementById('add-form');
 const wordTable = document.getElementById('word-table').querySelector('tbody');
 
-// 获取API URL
+// 定义API URL和token
 const apiUrl = 'http://41.77.243.233:1337/api/words-lists';
+const bearToken = '961b5b81ce5dc2942fd5578b7a105ee5aa423e2ff4ef939e23d2ad8ffaa43c259d6d04c3b990c76a80d81280a40bfdc799613c4791ff0524c5ed79d10a5d02464e989b5ca69bb0cfba3032c165a34aff772e9dd31dace325c2ffb43b9b0fdd01b8a1de8a69d586670ed4d7f684b2edf55b4a0c9ad6520fefc47d7cc01ae16066'
+const headers = {
+  'Content-Type': 'application/json;charset=utf-8',
+  'Authorization': `Bearer ${bearToken}`
+}
+
 
 // 获取所有数据并填充表格
-const xhr = new XMLHttpRequest();
-xhr.open('GET', apiUrl);
-xhr.onload = function () {
-  if (xhr.status === 200) {
-    const data = JSON.parse(xhr.responseText).data;
-    data.forEach(word => {
+fetch(apiUrl, {
+  headers: {
+    'Authorization': `Bearer ${bearToken}`
+  }
+})
+  .then(response => response.json())
+  .then(data => {
+    data.data.forEach(word => {
       addWordToTable(word);
     });
-  }
-};
-xhr.send();
+  })
+  .catch(error => {
+    console.error(error);
+  });
 
 // 将新单词添加到表格中
 addForm.addEventListener('submit', event => {
@@ -24,23 +33,19 @@ addForm.addEventListener('submit', event => {
 
   const englishInput = addForm.querySelector('#english-input');
   const chineseInput = addForm.querySelector('#chinese-input');
+  console.log(englishInput.value)
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', apiUrl);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.onload = function () {
-    if (xhr.status === 201) {
-      const word = JSON.parse(xhr.responseText).data;
-      addWordToTable(word);
-      englishInput.value = '';
-      chineseInput.value = '';
-    }
-  };
-  const data = JSON.stringify({
-    english: englishInput.value,
-    chinese: chineseInput.value
-  });
-  xhr.send(data);
+  fetch(apiUrl, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify({
+      "data": {
+        "english": englishInput.value,
+        "chinese": chineseInput.value
+      }
+
+    })
+  })
 });
 
 // 编辑单词
@@ -52,35 +57,45 @@ function editWord(id, englishCell, chineseCell) {
   const newChinese = prompt('Enter new Chinese word:', chinese);
 
   if (newEnglish && newChinese) {
-    const xhr = new XMLHttpRequest();
-    xhr.open('PUT', `${apiUrl}/${id}`);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onload = function () {
-      if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText).data;
-        englishCell.textContent = data.attributes.english;
-        chineseCell.textContent = data.attributes.chinese;
-      }
-    };
-    const data = JSON.stringify({
-      english: newEnglish,
-      chinese: newChinese
-    });
-    xhr.send(data);
+    fetch(`${apiUrl}/${id}`, {
+      method: 'PUT',
+      headers: headers,
+      body: JSON.stringify({
+        "data": {
+          "attributes": {
+            "english": newEnglish,
+            "chinese": newChinese
+          }
+        }
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        const word = data.data;
+        englishCell.textContent = word.attributes.english;
+        chineseCell.textContent = word.attributes.chinese;
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }
 }
 
 // 删除单词
 function deleteWord(id, row) {
   if (confirm('Are you sure you want to delete this word?')) {
-    const xhr = new XMLHttpRequest();
-    xhr.open('DELETE', `${apiUrl}/${id}`);
-    xhr.onload = function () {
-      if (xhr.status === 204) {
-        row.remove();
-      }
-    };
-    xhr.send();
+    fetch(`${apiUrl}/${id}`, {
+      method: 'DELETE',
+      headers: headers,
+    })
+      .then(response => {
+        if (response.status === 204) {
+          row.remove();
+        }
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }
 }
 
@@ -110,7 +125,6 @@ function addWordToTable(word) {
 
   actionsCell.appendChild(editButton);
   actionsCell.appendChild(deleteButton);
-
   row.appendChild(idCell);
   row.appendChild(englishCell);
   row.appendChild(chineseCell);
