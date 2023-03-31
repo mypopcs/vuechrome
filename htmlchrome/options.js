@@ -1,4 +1,3 @@
-// 公共部分
 const apiBaseUrl = 'http://41.77.243.233:1337/api/words-lists';
 const headers = {
   'Content-Type': 'application/json;charset=utf-8',
@@ -21,7 +20,6 @@ function validateWord(english, chinese) {
   return true;
 }
 
-// 定义函数
 function addWordToTable(word) {
   const { id, attributes } = word;
   const row = $(`
@@ -68,45 +66,95 @@ function deleteWord(id, row) {
   }
 }
 
-// 初始化页面
-api.getWords()
-  .then(data => data.data.forEach(addWordToTable))
-  .catch(error => console.error(error));
+function exportToExcel(data, filename) {
+  const header = Object.keys(data[0]);
+  const worksheet = XLSX.utils.json_to_sheet(data, { header });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+  XLSX.writeFile(workbook, filename);
+}
 
-// 添加单词
-$('#add-form').on('submit', event => {
-  event.preventDefault();
+function importFromExcel(file) {
+  const reader = new FileReader();
+  reader.onload = event => {
+    const data = new Uint8Array(event.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-  const englishInput = $('#english-input');
-  const chineseInput = $('#chinese-input');
+    // Get rid of the first row (header)
+    rows.shift();
 
-  const english = englishInput.val().trim();
-  const chinese = chineseInput.val().trim();
+    rows.forEach(row => {
+      api.addWord({ english: row[1], chinese: row[2] })
+        .then(() => console.log(`Word with ID ${row[0]} added successfully.`))
+        .catch(error => console.error(`Failed to add word with ID ${row[0]}: ${error.message}`));
+    });
 
-  if (validateWord(english, chinese)) {
-    api.addWord({ english, chinese })
-      .then(() => { alert('Word added successfully!'); location.reload(); })
-      .catch(() => alert('Failed to add word.'));
-  }
-});
+    location.reload();
+  };
+  reader.readAsArrayBuffer(file);
+}
 
-// 搜索单词
-$('#search-form').on('submit', event => {
-  event.preventDefault();
 
-  const searchInput = $('#search-input');
-  const searchQuery = searchInput.val().trim().toLowerCase();
-  if (!searchQuery) return;
-
-  api.searchWords(searchQuery)
-    .then(data => {
-      $('#word-table tbody').empty();
-      if (data.data.length) {
-        data.data.forEach(addWordToTable);
-      } else {
-        alert(`No words found matching "${searchQuery}".`);
-        searchInput.val('');
-      }
-    })
+$(function () {
+  // 显示单词列表
+  api.getWords()
+    .then(data => data.data.forEach(addWordToTable))
     .catch(error => console.error(error));
+
+  // 搜索单词
+  $('#search-form').on('submit', event => {
+    event.preventDefault();
+    const searchQuery = $('#search-input').val().trim();
+    if (!searchQuery) return;
+
+    api.searchWords(searchQuery)
+      .then(data => {
+        $('#word-table tbody').empty();
+        if (data.data.length === 0) {
+          alert('No matching words found.');
+        } else {
+          data.data.forEach(addWordToTable);
+        }
+      })
+      .catch(error => console.error(error));
+  });
+
+  // 添加单词
+  $('#add-form').on('submit', event => {
+    event.preventDefault();
+    const english = $('#english-input').val().trim();
+    const chinese = $('#chinese-input').val().trim();
+    if (validateWord(english, chinese)) {
+      api.addWord({ english, chinese })
+        .then(data => { alert('Word added successfully!'); addWordToTable(data.data); })
+        .catch(() => alert('Failed to add word.'));
+    }
+  });
+
+  // 导出单词列表为Excel文件
+  $('#export-btn').on('click', () => {
+    api.getWords()
+      .then(data => {
+        const words = data.data;
+        const formattedData = words.map(word => ({
+          'ID': word.id,
+          'English': word.attributes.english,
+          'Chinese': word.attributes.chinese
+        }));
+        exportToExcel(formattedData, 'words.xlsx');
+      })
+      .catch(error => console.error(error));
+  });
+
+  // 导入Excel中的单词
+  $('#import-btn').on('change', event => {
+    const file = event.target.files[0];
+    if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+      importFromExcel(file);
+    } else {
+      alert('Please choose a valid Excel file.');
+    }
+  });
 });
